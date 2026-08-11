@@ -147,7 +147,7 @@
 
       in
       {
-        packages.default = yambs;
+        packages.yambs = yambs;
         packages.seed-nukular = seedNukular;
         checks.pre-commit-check = preCommitGen.pre-commit-check;
         inherit (preCommitGen) formatter;

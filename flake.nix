@@ -65,8 +65,8 @@
             # systems opens the wrong app (e.g. Calibre). Pass -action write to override.
             args=(-type release -action serve -set "artist0_name=$ARTIST" -set "edit_note=$EDIT_NOTE")
 
-            curl -s "$FEED" \
-              | python3 -c '
+            curl -s "$FEED" |
+              python3 -c '
             import re, sys
 
             def roman_to_int(s):
@@ -112,7 +112,7 @@
             head = data.split("<item>")[0]
             tail = data.rsplit("</item>", 1)[1]
             sys.stdout.write(head + "".join(out) + tail)
-            ' > "$tmp"
+            ' >"$tmp"
 
             yambs "''${args[@]}" "$@" "$tmp"
           '';

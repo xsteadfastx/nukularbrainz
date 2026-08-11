@@ -197,8 +197,14 @@
           ];
           text = ''
             set -euo pipefail
-            MBID="''${1:?usage: add-cover <release-mbid> <episode-number>}"
-            NUM="''${2:?usage: add-cover <release-mbid> <episode-number>}"
+            MBID="''${1:?usage: add-cover <release-mbid-or-url> <episode-number>}"
+            NUM="''${2:?usage: add-cover <release-mbid-or-url> <episode-number>}"
+            # Accept a bare MBID or a full release URL; pull the UUID out of either.
+            MBID="$(printf '%s' "$MBID" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)"
+            if [ -z "$MBID" ]; then
+              echo "could not find a release MBID in '$1'" >&2
+              exit 1
+            fi
             NUM="$(printf '%03d' "$NUM")"
             file="$(find cover-art -maxdepth 1 -name "$NUM*" -print -quit 2>/dev/null || true)"
             if [ -z "$file" ]; then

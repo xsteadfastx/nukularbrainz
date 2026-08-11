@@ -135,11 +135,11 @@
         "rev": "b75e636d048ef5326d4ecccf22129f8e9b85aad3",
         "revCount": 19,
         "type": "git",
-        "url": "ssh://git@git.wobcom.de/smartmetering/pre-commit-nix.git"
+        "url": "https://git.xsfx.dev/xsteadfastx/pre-commit-nix.git"
       },
       "original": {
         "type": "git",
-        "url": "ssh://git@git.wobcom.de/smartmetering/pre-commit-nix.git"
+        "url": "https://git.xsfx.dev/xsteadfastx/pre-commit-nix.git"
       }
     },
     "pre-commit-hooks": {

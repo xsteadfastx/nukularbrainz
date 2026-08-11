@@ -2,7 +2,7 @@
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    pre-commit.url = "git+ssh://git@git.wobcom.de/smartmetering/pre-commit-nix.git";
+    pre-commit.url = "git+https://git.xsfx.dev/xsteadfastx/pre-commit-nix.git";
   };
 
   outputs =

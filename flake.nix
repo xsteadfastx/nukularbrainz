@@ -138,9 +138,6 @@
           };
           extraPackages = [
             pkgs.git
-            yambs
-            pkgs.python3
-            pkgs.curl
             seedNukular
           ];
           extraShellHook = ''

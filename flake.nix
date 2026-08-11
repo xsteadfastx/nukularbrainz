@@ -118,6 +118,70 @@
           '';
         };
 
+        # Download each episode's cover art from the feed into ./cover-art, named
+        # by episode (e.g. "272 - Battle der Besten_ Fahrzeuge der Popkultur.jpg").
+        # The folder is git-ignored; the script creates it if missing.
+        downloadCovers = pkgs.writeShellApplication {
+          name = "download-covers";
+          runtimeInputs = [
+            pkgs.python3
+            pkgs.curl
+          ];
+          text = ''
+            set -euo pipefail
+            FEED="https://feeds.einfach-podcasten.de/radionukular-mp3"
+            OUT="''${1:-cover-art}"
+            mkdir -p "$OUT"
+
+            curl -s "$FEED" | python3 -c '
+            import os, re, sys, urllib.request
+
+            def roman_to_int(s):
+                vals = {"I":1,"V":5,"X":10,"L":50,"C":100,"D":500,"M":1000}
+                total, prev = 0, 0
+                for c in reversed(s.upper()):
+                    v = vals[c]
+                    total += -v if v < prev else v
+                    prev = v
+                return total
+
+            def parse_episode(title):
+                m = re.match(r"^Episode\s+(\d+)\s*[:\-–]\s*(.+)$", title, re.I)
+                if m: return int(m.group(1)), m.group(2).strip()
+                m = re.match(r"^Episode\s+([IVXLCDM]+)\s*[:\-–]\s*(.+)$", title, re.I)
+                if m: return roman_to_int(m.group(1)), m.group(2).strip()
+                m = re.match(r"^#(\d+)\s*[:\-–]?\s*(.+)$", title)
+                if m: return int(m.group(1)), m.group(2).strip()
+                m = re.match(r"^(\d+)\s*[:\-–]\s*(.+)$", title)
+                if m: return int(m.group(1)), m.group(2).strip()
+                return None, title
+
+            out = sys.argv[1]
+            data = sys.stdin.read()
+            for it in re.findall(r"<item>.*?</item>", data, re.S):
+                img = re.search(r"<itunes:image[^>]*href=\"([^\"]+)\"", it)
+                if not img:
+                    continue
+                url = img.group(1)
+                t = re.search(r"<title>(.*?)</title>", it, re.S).group(1)
+                t = re.sub(r"^<!\[CDATA\[(.*)\]\]>$", r"\1", t, flags=re.S)
+                num, prog = parse_episode(t)
+                # Zero-pad the episode number (1 -> 001) so files sort correctly.
+                name = f"{num:03d} - {prog}" if num else t
+                # Keep title punctuation (e.g. ":") so filenames match the
+                # episode/release titles; only strip path separators.
+                name = re.sub(r"[/\\]", "_", name)
+                name = re.sub(r"\s+", " ", name).strip()
+                ext = os.path.splitext(url.split("?")[0])[1] or ".jpg"
+                path = os.path.join(out, name + ext)
+                if os.path.exists(path):
+                    continue
+                urllib.request.urlretrieve(url, path)
+                print(path)
+            ' "$OUT"
+          '';
+        };
+
         # Custom additional hooks
         # extraHooks = {
         #   have-a-nice-day-hook = {
@@ -137,6 +201,7 @@
             # hooks = extraHooks;
           };
           extraPackages = [
+            downloadCovers
             pkgs.git
             seedNukular
           ];
@@ -147,8 +212,11 @@
 
       in
       {
-        packages.yambs = yambs;
-        packages.seed-nukular = seedNukular;
+        packages = {
+          inherit yambs;
+          seed-nukular = seedNukular;
+          download-covers = downloadCovers;
+        };
         checks.pre-commit-check = preCommitGen.pre-commit-check;
         inherit (preCommitGen) formatter;
         devShells.default = preCommitGen.devShell;

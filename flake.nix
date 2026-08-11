@@ -104,8 +104,6 @@
             items = re.findall(r"<item>.*?</item>", data, re.S)
             out = []
             for it in items:
-                if re.search(r"<itunes:duration>([^<]+)</itunes:duration>", it).group(1) == "00:00:00":
-                    continue
                 t = re.search(r"<title>(.*?)</title>", it, re.S).group(1)
                 t = re.sub(r"^<!\[CDATA\[(.*)\]\]>$", r"\1", t, flags=re.S)
                 new = transform(t)

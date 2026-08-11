@@ -51,8 +51,8 @@ nix run .#seed-nukular
 
 ## 🎙️ `seed-nukular`
 
-Fetches the Radio Nukular RSS feed, **skips episodes with no duration**, and seeds a
-**release** for every remaining episode — fully following the
+Fetches the Radio Nukular RSS feed and seeds a **release** for every episode — fully
+following the
 [MusicBrainz podcast guidelines](https://musicbrainz.org/doc/Style/Specific_types_of_releases/Podcast_and_broadcast_programs).
 
 ### ✨ What each release gets
@@ -74,6 +74,10 @@ Fetches the Radio Nukular RSS feed, **skips episodes with no duration**, and see
 seed-nukular                    # open releases in the browser (default)
 seed-nukular -action write      # dump the edit HTML to stdout
 seed-nukular -action serve      # serve via a short-lived webserver
+
+# Seed only specific episodes (comma-separated numbers and/or ranges)
+EPISODES="44,55,57" nix run .#seed-nukular
+EPISODES="66-276"  nix run .#seed-nukular
 ```
 
 > [!NOTE]

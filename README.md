@@ -23,6 +23,8 @@
 | --- | --- | --- |
 | 🚀 `packages.default` | [`yambs`](https://codeberg.org/derat/yambs) v0.1.15 | The MusicBrainz edit seeder — CSV/TSV, Bandcamp, Qobuz, Tidal, Metal Archives, MP3s, RSS |
 | 🎙️ `packages.seed-nukular` | `seed-nukular` | One-click podcast release seeding, MB-style-guide compliant |
+| 🖼️ `packages.download-covers` | `download-covers` | Download each episode's cover art into `cover-art/`, named by episode |
+| 🎨 `packages.add-cover` | `add-cover` | Open the add-cover-art page pre-seeded with the matching local image |
 | 🛠️ `devShells.default` | Dev shell | `yambs`, `seed-nukular`, `git`, `python3`, `curl` on PATH |
 | ✅ `checks.pre-commit-check` | Pre-commit hooks | typos, nixfmt, shellcheck, shfmt, statix, … |
 | 🎨 `formatter` | `nixfmt` | One command to keep the flake pretty |
@@ -77,6 +79,21 @@ seed-nukular -action serve      # serve via a short-lived webserver
 > [!NOTE]
 > `-action print` doesn't work for releases — they need a **POST** request,
 > not a bare URL.
+
+### 🖼️ Cover art
+
+```bash
+# Download every episode's cover art into ./cover-art, named by episode
+# (e.g. "272 - Battle der Besten: Fahrzeuge der Popkultur.jpeg")
+download-covers
+
+# After a release is accepted, open its add-cover-art page pre-seeded with the
+# matching local image (requires the "MB: Enhanced Cover Art Uploads" userscript)
+add-cover <release-mbid> <episode-number>
+```
+
+The `cover-art/` folder is git-ignored (only a `.gitkeep` is committed), so
+images never land in the repo.
 
 ### 🔗 The series relationship
 

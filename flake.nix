@@ -209,22 +209,25 @@
             log="$(mktemp)"
             python3 -m http.server "$port" --bind 127.0.0.1 --directory cover-art >"$log" 2>&1 &
             server=$!
+            # Keep the server alive in the background so the userscript can fetch
+            # the image (HEAD + GET + maxurl re-fetch) at its own pace. xdg-open
+            # returns immediately, so without this the server dies before the fetch.
+            disown "$server" 2>/dev/null || true
             trap 'kill "$server" 2>/dev/null; rm -f "$log"' EXIT
             sleep 1
             enc="$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' "$(basename "$file")")"
             url="https://musicbrainz.org/release/$MBID/add-cover-art?x_seed.image.0.url=http://127.0.0.1:$port/$enc&x_seed.image.0.types=[1]&x_seed.origin=Radio%20Nukular"
             xdg-open "$url"
-            # Keep the server up until the userscript fetches the image, then exit.
-            # (xdg-open returns immediately; without this the server dies before the fetch.)
+            # Wait until the userscript fetches the image, then keep the server up
+            # a little longer for any re-fetch, then stop it.
             for _ in $(seq 1 60); do
-              if grep -Fq "GET /$enc " "$log"; then
-                echo "cover art fetched; server stopped" >&2
-                exit 0
+              if grep -Fq "$enc" "$log" 2>/dev/null; then
+                sleep 30
+                break
               fi
               sleep 1
             done
-            echo "timed out waiting for cover art fetch (is the userscript installed?)" >&2
-            exit 1
+            kill "$server" 2>/dev/null || true
           '';
         };
 

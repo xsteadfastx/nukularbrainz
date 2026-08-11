@@ -182,6 +182,37 @@
           '';
         };
 
+        # Open the MusicBrainz add-cover-art page for a release, pre-seeded with
+        # the matching local cover art. Requires the "MB: Enhanced Cover Art
+        # Uploads" userscript (seeds the upload form from a URL).
+        # Usage: add-cover <release-mbid> <episode-number>
+        addCover = pkgs.writeShellApplication {
+          name = "add-cover";
+          runtimeInputs = [
+            pkgs.python3
+            pkgs.xdg-utils
+          ];
+          text = ''
+            set -euo pipefail
+            MBID="''${1:?usage: add-cover <release-mbid> <episode-number>}"
+            NUM="''${2:?usage: add-cover <release-mbid> <episode-number>}"
+            NUM="$(printf '%03d' "$NUM")"
+            file="$(find cover-art -maxdepth 1 -name "$NUM*" -print -quit 2>/dev/null || true)"
+            if [ -z "$file" ]; then
+              echo "no cover art for episode $NUM in cover-art/" >&2
+              exit 1
+            fi
+            port=8765
+            python3 -m http.server "$port" --bind 127.0.0.1 --directory cover-art >/dev/null 2>&1 &
+            server=$!
+            trap 'kill "$server" 2>/dev/null' EXIT
+            sleep 1
+            enc="$(python3 -c 'import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))' "$(basename "$file")")"
+            url="https://musicbrainz.org/release/$MBID/add-cover-art?x_seed.image.0.url=http://127.0.0.1:$port/$enc&x_seed.image.0.types=[1]&x_seed.origin=Radio%20Nukular"
+            xdg-open "$url"
+          '';
+        };
+
         # Custom additional hooks
         # extraHooks = {
         #   have-a-nice-day-hook = {
@@ -216,6 +247,7 @@
           inherit yambs;
           seed-nukular = seedNukular;
           download-covers = downloadCovers;
+          add-cover = addCover;
         };
         checks.pre-commit-check = preCommitGen.pre-commit-check;
         inherit (preCommitGen) formatter;

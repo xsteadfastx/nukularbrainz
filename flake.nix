@@ -133,6 +133,7 @@
           inherit pkgs system;
           src = ./.;
           extra = {
+            hooks.typos.settings.configPath = ".typos.toml";
             # hooks = extraHooks;
           };
           extraPackages = [

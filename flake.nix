@@ -192,18 +192,30 @@
         addCover = pkgs.writeShellApplication {
           name = "add-cover";
           runtimeInputs = [
+            pkgs.curl
             pkgs.python3
             pkgs.xdg-utils
           ];
           text = ''
             set -euo pipefail
-            MBID="''${1:?usage: add-cover <release-mbid-or-url> <episode-number>}"
-            NUM="''${2:?usage: add-cover <release-mbid-or-url> <episode-number>}"
+            MBID="''${1:?usage: add-cover <release-mbid-or-url> [episode-number]}"
+            NUM="''${2:-}"
             # Accept a bare MBID or a full release URL; pull the UUID out of either.
             MBID="$(printf '%s' "$MBID" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)"
             if [ -z "$MBID" ]; then
               echo "could not find a release MBID in '$1'" >&2
               exit 1
+            fi
+            # Episode number is optional: if omitted, read it from the release
+            # title ("Radio Nukular #N, ...") via the MusicBrainz API.
+            if [ -z "$NUM" ]; then
+              title="$(curl -s "https://musicbrainz.org/ws/2/release/$MBID?fmt=json" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("title",""))')"
+              NUM="$(printf '%s' "$title" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)"
+              if [ -z "$NUM" ]; then
+                echo "could not determine episode number from release title '$title'; pass it as the 2nd arg" >&2
+                exit 1
+              fi
+              echo "episode $NUM from title: $title" >&2
             fi
             NUM="$(printf '%03d' "$NUM")"
             file="$(find cover-art -maxdepth 1 -name "$NUM*" -print -quit 2>/dev/null || true)"

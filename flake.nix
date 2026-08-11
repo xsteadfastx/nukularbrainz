@@ -70,7 +70,7 @@
 
             curl -s "$FEED" |
               python3 -c '
-            import re, sys
+            import os, re, sys
 
             def roman_to_int(s):
                 vals = {"I":1,"V":5,"X":10,"L":50,"C":100,"D":500,"M":1000}
@@ -92,6 +92,21 @@
                 if m: return int(m.group(1)), m.group(2).strip()
                 return None, title
 
+            # Optional EPISODES env var filters which episodes to seed, e.g.
+            # "44,55,57" or "66-276". Empty means seed everything.
+            def parse_episodes(s):
+                allowed = set()
+                for part in s.split(","):
+                    part = part.strip()
+                    if not part: continue
+                    if "-" in part:
+                        a, b = part.split("-", 1)
+                        allowed.update(range(int(a), int(b) + 1))
+                    else:
+                        allowed.add(int(part))
+                return allowed
+            allowed = parse_episodes(os.environ.get("EPISODES", ""))
+
             # Rewrite "Episode NNN - Title" to "#NNN: Title" so yambs release-title
             # logic produces the MB podcast form "Radio Nukular #NNN, \"Title\"".
             def transform(title):
@@ -106,6 +121,9 @@
             for it in items:
                 t = re.search(r"<title>(.*?)</title>", it, re.S).group(1)
                 t = re.sub(r"^<!\[CDATA\[(.*)\]\]>$", r"\1", t, flags=re.S)
+                ep, _ = parse_episode(t)
+                if allowed and ep not in allowed:
+                    continue
                 new = transform(t)
                 it = re.sub(r"<title>.*?</title>", lambda m: f"<title>{new}</title>", it, count=1, flags=re.S)
                 it = re.sub(r"<itunes:title>.*?</itunes:title>", lambda m: f"<itunes:title>{new}</itunes:title>", it, count=1, flags=re.S)

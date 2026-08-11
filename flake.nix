@@ -109,6 +109,10 @@
                 new = transform(t)
                 it = re.sub(r"<title>.*?</title>", lambda m: f"<title>{new}</title>", it, count=1, flags=re.S)
                 it = re.sub(r"<itunes:title>.*?</itunes:title>", lambda m: f"<itunes:title>{new}</itunes:title>", it, count=1, flags=re.S)
+                # yambs rejects a zero duration; drop the element so the release
+                # just has no length (feed has 00:00:00 for some real episodes).
+                if re.search(r"<itunes:duration>00:00:00</itunes:duration>", it):
+                    it = re.sub(r"<itunes:duration>.*?</itunes:duration>", "", it, count=1, flags=re.S)
                 out.append(it)
             head = data.split("<item>")[0]
             tail = data.rsplit("</item>", 1)[1]

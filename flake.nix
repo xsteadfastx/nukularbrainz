@@ -49,6 +49,7 @@
             set -euo pipefail
             FEED="https://feeds.einfach-podcasten.de/radionukular-mp3"
             ARTIST="Radio Nukular"
+            ARTIST_MBID="62cb9850-e9ed-452f-8c3f-7742f0855373"
             EDIT_NOTE="from $FEED"
             tmp="$(mktemp --suffix=.xml)"
             trap 'rm -f "$tmp"' EXIT
@@ -63,7 +64,9 @@
             # Default to -action serve (opens a URL in the browser). The default
             # -action open writes a temp .html file and xdg-opens it, which on some
             # systems opens the wrong app (e.g. Calibre). Pass -action write to override.
-            args=(-type release -action serve -set "artist0_name=$ARTIST" -set "edit_note=$EDIT_NOTE")
+            # artist0_name prefills the artist search box; artist0_mbid pins the
+            # credit directly so it isn't silently dropped on submit.
+            args=(-type release -action serve -set "artist0_name=$ARTIST" -set "artist0_mbid=$ARTIST_MBID" -set "edit_note=$EDIT_NOTE")
 
             curl -s "$FEED" |
               python3 -c '
@@ -232,6 +235,7 @@
             # hooks = extraHooks;
           };
           extraPackages = [
+            addCover
             downloadCovers
             pkgs.git
             seedNukular

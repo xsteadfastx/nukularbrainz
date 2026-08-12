@@ -17,13 +17,13 @@ jobs:
       - run: nix flake check
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        pkg: [yambs, seed-nukular]
     steps:
       - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@v22
       - uses: nix-community/cache-nix-action@v7
         with:
           primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}
-      - run: nix build .#packages.x86_64-linux.${{ matrix.pkg }}
+      - run: |
+          for p in $(nix eval --raw --apply 'ps: builtins.concatStringsSep " " (builtins.attrNames ps)' '.#packages.x86_64-linux'); do
+            nix build ".#packages.x86_64-linux.$p"
+          done

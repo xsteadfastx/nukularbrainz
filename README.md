@@ -23,6 +23,8 @@
 | --- | --- | --- |
 | 🚀 `packages.default` | [`yambs`](https://codeberg.org/derat/yambs) v0.1.15 | The MusicBrainz edit seeder — CSV/TSV, Bandcamp, Qobuz, Tidal, Metal Archives, MP3s, RSS |
 | 🎙️ `packages.seed-nukular` | `seed-nukular` | One-click podcast release seeding, MB-style-guide compliant |
+| 📥 `packages.download-episodes` | `download-episodes` | Download every episode's audio into `episodes/`, named by episode |
+| 🏷️ `packages.tag-episodes` | `tag-episodes` | Pre-tag each episode with its MusicBrainz release ID for beets |
 | 🖼️ `packages.download-covers` | `download-covers` | Download each episode's cover art into `cover-art/`, named by episode |
 | 🎨 `packages.add-cover` | `add-cover` | Open the add-cover-art page pre-seeded with the matching local image |
 | 🛠️ `devShells.default` | Dev shell | `yambs`, `seed-nukular`, `git`, `python3`, `curl` on PATH |
@@ -83,6 +85,23 @@ EPISODES="66-276"  nix run .#seed-nukular
 > [!NOTE]
 > `-action print` doesn't work for releases — they need a **POST** request,
 > not a bare URL.
+
+### 📥 Episodes → beets
+
+```bash
+# Download every episode's audio into ./episodes, named by episode
+# (e.g. "272 - Battle der Besten_ Fahrzeuge der Popkultur.mp3")
+download-episodes
+
+# Pre-tag each file with its MusicBrainz release ID (looked up from the
+# existing Radio Nukular releases), so beets matches on import
+tag-episodes
+
+# Import straight into your beets library
+beet import episodes/
+```
+
+The `episodes/` folder is git-ignored (only a `.gitkeep` is committed).
 
 ### 🖼️ Cover art
 

@@ -11,4 +11,8 @@
 # downloaded episode cover art (keep the dir, ignore the images)
 /cover-art/*
 !/cover-art/.gitkeep
+
+# downloaded episode audio (keep the dir, ignore the files)
+/episodes/*
+!/episodes/.gitkeep
 /.playwright-mcp/

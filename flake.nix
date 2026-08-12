@@ -205,6 +205,137 @@
           '';
         };
 
+        # Download each episode's audio from the feed into ./episodes, named by
+        # episode (e.g. "272 - Battle der Besten_ Fahrzeuge der Popkultur.mp3").
+        # The folder is git-ignored; the script creates it if missing.
+        downloadEpisodes = pkgs.writeShellApplication {
+          name = "download-episodes";
+          runtimeInputs = [
+            pkgs.python3
+            pkgs.curl
+          ];
+          text = ''
+            set -euo pipefail
+            FEED="https://feeds.einfach-podcasten.de/radionukular-mp3"
+            OUT="''${1:-episodes}"
+            mkdir -p "$OUT"
+
+            curl -s "$FEED" | python3 -c '
+            import os, re, sys, urllib.request
+
+            def roman_to_int(s):
+                vals = {"I":1,"V":5,"X":10,"L":50,"C":100,"D":500,"M":1000}
+                total, prev = 0, 0
+                for c in reversed(s.upper()):
+                    v = vals[c]
+                    total += -v if v < prev else v
+                    prev = v
+                return total
+
+            def parse_episode(title):
+                m = re.match(r"^Episode\s+(\d+)\s*[:\-–]\s*(.+)$", title, re.I)
+                if m: return int(m.group(1)), m.group(2).strip()
+                m = re.match(r"^Episode\s+([IVXLCDM]+)\s*[:\-–]\s*(.+)$", title, re.I)
+                if m: return roman_to_int(m.group(1)), m.group(2).strip()
+                m = re.match(r"^(#\d+)\s*[:\-–]?\s*(.+)$", title)
+                if m: return int(m.group(1).lstrip("#")), m.group(2).strip()
+                m = re.match(r"^(\d+)\s*[:\-–]\s*(.+)$", title)
+                if m: return int(m.group(1)), m.group(2).strip()
+                return None, title
+
+            out = sys.argv[1]
+            data = sys.stdin.read()
+            for it in re.findall(r"<item>.*?</item>", data, re.S):
+                enc = re.search(r"<enclosure[^>]*url=\"([^\"]+)\"", it)
+                if not enc:
+                    continue
+                url = enc.group(1)
+                t = re.search(r"<title>(.*?)</title>", it, re.S).group(1)
+                t = re.sub(r"^<!\[CDATA\[(.*)\]\]>$", r"\1", t, flags=re.S)
+                num, prog = parse_episode(t)
+                # Zero-pad the episode number (1 -> 001) so files sort correctly.
+                name = f"{num:03d} - {prog}" if num else t
+                name = re.sub(r"[/\\]", "_", name)
+                name = re.sub(r"\s+", " ", name).strip()
+                ext = os.path.splitext(url.split("?")[0])[1] or ".mp3"
+                path = os.path.join(out, name + ext)
+                if os.path.exists(path):
+                    continue
+                urllib.request.urlretrieve(url, path)
+                print(path)
+            ' "$OUT"
+          '';
+        };
+
+        # Pre-tag each downloaded episode with its MusicBrainz release ID so
+        # `beet import` matches directly (beets reads the MusicBrainz Album Id
+        # tag as a strong match candidate). Looks up existing Radio Nukular
+        # releases via the MusicBrainz API and matches by episode number.
+        tagEpisodes = pkgs.writeShellApplication {
+          name = "tag-episodes";
+          runtimeInputs = [
+            (pkgs.python3.withPackages (ps: [ ps.mutagen ]))
+          ];
+          text = ''
+            set -euo pipefail
+            OUT="''${1:-episodes}"
+            python3 -c '
+            import json, os, re, sys, urllib.request
+            from mutagen import File
+
+            ARTIST_MBID = "62cb9850-e9ed-452f-8c3f-7742f0855373"
+            UA = "nukularbrainz/0.1 (https://github.com/example/nukularbrainz)"
+
+            def fetch_releases():
+                releases = {}
+                offset = 0
+                while True:
+                    url = f"https://musicbrainz.org/ws/2/release?artist={ARTIST_MBID}&fmt=json&limit=100&offset={offset}&inc=release-groups"
+                    req = urllib.request.Request(url, headers={"User-Agent": UA})
+                    data = json.load(urllib.request.urlopen(req))
+                    for rel in data.get("releases", []):
+                        m = re.search(r"#(\d+)", rel.get("title", ""))
+                        if m:
+                            releases[int(m.group(1))] = (rel["id"], rel.get("release-group", {}).get("id"))
+                    offset += 100
+                    if offset >= data.get("release-count", 0):
+                        break
+                return releases
+
+            def main():
+                out = sys.argv[1] if len(sys.argv) > 1 else "episodes"
+                releases = fetch_releases()
+                matched = unmatched = 0
+                for f in sorted(os.listdir(out)):
+                    if not f.lower().endswith(".mp3"):
+                        continue
+                    m = re.match(r"^(\d+)", f)
+                    if not m:
+                        print(f"no episode number in {f}")
+                        unmatched += 1
+                        continue
+                    num = int(m.group(1))
+                    info = releases.get(num)
+                    if not info:
+                        print(f"no release for episode {num} ({f})")
+                        unmatched += 1
+                        continue
+                    mbid, rgid = info
+                    audio = File(os.path.join(out, f), easy=True)
+                    audio["musicbrainz_albumid"] = mbid
+                    audio["musicbrainz_artistid"] = ARTIST_MBID
+                    if rgid:
+                        audio["musicbrainz_releasegroupid"] = rgid
+                    audio.save()
+                    print(f"tagged {f} -> {mbid}")
+                    matched += 1
+                print(f"{matched} tagged, {unmatched} unmatched")
+
+            main()
+            ' "$OUT"
+          '';
+        };
+
         # Open the MusicBrainz add-cover-art page for a release, pre-seeded with
         # the matching local cover art. Requires the "MB: Enhanced Cover Art
         # Uploads" userscript (seeds the upload form from a URL).
@@ -290,8 +421,10 @@
           extraPackages = [
             addCover
             downloadCovers
+            downloadEpisodes
             pkgs.git
             seedNukular
+            tagEpisodes
           ];
           extraShellHook = ''
             echo "Extra shellHook on entering DevShell"
@@ -304,6 +437,8 @@
           inherit yambs;
           seed-nukular = seedNukular;
           download-covers = downloadCovers;
+          download-episodes = downloadEpisodes;
+          tag-episodes = tagEpisodes;
           add-cover = addCover;
         };
         checks.pre-commit-check = preCommitGen.pre-commit-check;

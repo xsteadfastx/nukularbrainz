@@ -245,6 +245,7 @@
 
             out = sys.argv[1]
             data = sys.stdin.read()
+
             for it in re.findall(r"<item>.*?</item>", data, re.S):
                 enc = re.search(r"<enclosure[^>]*url=\"([^\"]+)\"", it)
                 if not enc:
@@ -261,8 +262,14 @@
                 path = os.path.join(out, name + ext)
                 if os.path.exists(path):
                     continue
-                urllib.request.urlretrieve(url, path)
-                print(path)
+                label = f"downloading {name}{ext}"
+                print(label, end="", flush=True)
+                def progress(count, block_size, total):
+                    if total:
+                        pct = min(100, count * block_size * 100 // total)
+                        print(f"\r{label} {pct:3d}%", end="", flush=True)
+                urllib.request.urlretrieve(url, path, reporthook=progress)
+                print(f"\r{label} done")
             ' "$OUT"
           '';
         };
@@ -305,29 +312,29 @@
             def main():
                 out = sys.argv[1] if len(sys.argv) > 1 else "episodes"
                 releases = fetch_releases()
+                files = [f for f in sorted(os.listdir(out)) if f.lower().endswith(".mp3")]
                 matched = unmatched = 0
-                for f in sorted(os.listdir(out)):
-                    if not f.lower().endswith(".mp3"):
-                        continue
+                for i, f in enumerate(files, 1):
                     m = re.match(r"^(\d+)", f)
                     if not m:
-                        print(f"no episode number in {f}")
+                        print(f"\r[{i}/{len(files)}] no episode number in {f}")
                         unmatched += 1
                         continue
                     num = int(m.group(1))
                     info = releases.get(num)
                     if not info:
-                        print(f"no release for episode {num} ({f})")
+                        print(f"\r[{i}/{len(files)}] no release for episode {num} ({f})")
                         unmatched += 1
                         continue
                     mbid, rgid = info
+                    print(f"\r[{i}/{len(files)}] tagging {f}", end="", flush=True)
                     audio = File(os.path.join(out, f), easy=True)
                     audio["musicbrainz_albumid"] = mbid
                     audio["musicbrainz_artistid"] = ARTIST_MBID
                     if rgid:
                         audio["musicbrainz_releasegroupid"] = rgid
                     audio.save()
-                    print(f"tagged {f} -> {mbid}")
+                    print(f"\r[{i}/{len(files)}] tagged {f} -> {mbid}")
                     matched += 1
                 print(f"{matched} tagged, {unmatched} unmatched")
 
